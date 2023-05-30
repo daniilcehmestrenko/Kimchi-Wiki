@@ -2,7 +2,7 @@ import asyncpg
 from asyncpg.pool import Pool
 from aiohttp.web_app import Application
 
-from config import settings
+from config import DB_KEY
 
 
 class ConnectDb:
@@ -19,8 +19,8 @@ class ConnectDb:
             max_size=6,
             min_size=6
         )
-        app[settings.DB_KEY] = pool
+        app[DB_KEY] = pool
 
     async def destroy_db_pool(self, app: Application):
-        pool: Pool = app[settings.DB_KEY]
+        pool: Pool = app[DB_KEY]
         await pool.close()

@@ -1,8 +1,14 @@
 from aiohttp import web
 from aiohttp.web_app import Application
 
-from app.routes import setup_routes
-from db.connect_db import ConnectDb
+from connect_db import ConnectDb
+from auth.routes import setup_routes as setup_auth
+from folders.routes import setup_routes as setup_folders
+
+
+def setup_routes(app: Application):
+    setup_auth(app)
+    setup_folders(app)
 
 
 def setup_db(app: Application):

@@ -26,15 +26,6 @@ class UserPassword(BaseModel):
         return value
 
 
-class UserId(BaseModel):
-    user_id: int
-
-
 class UserAuthData(BaseModel):
     email: EmailStr
     password: str
-
-
-class FolderCreate(BaseModel):
-    title: str
-    user_id: int
