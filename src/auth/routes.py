@@ -1,17 +1,24 @@
+import jwt
+
 from aiohttp import web
-from aiohttp.web_app import Application
-from asyncpg import Pool, Record
+from asyncpg import Pool
 from asyncpg.exceptions import UniqueViolationError
 
 from pydantic.error_wrappers import ValidationError
 
-from config import DB_KEY
+from datetime import datetime, timedelta
+
+from config import (
+    DB_KEY,
+    JWT_ALGORITHM,
+    JWT_EXP_DELTA_SECONDS,
+    JWT_SECRET
+)
+from .models import User
+from .utils import match_password
+from .exceptions import UserDoesNotExist, UserPasswordDoesNotMatch
 from .repositories import UserRepository
 from .schemas import UserCreate, UserAuthData
-
-
-def setup_routes(app: Application):
-    app.router.add_view('/register', UserRegisterView)
 
 
 class UserRegisterView(web.View):
@@ -45,18 +52,28 @@ class LoginView(web.View):
         try:
             authdata = UserAuthData(**request_data)
             pool: Pool = self.request.app[DB_KEY]
+
             async with pool.acquire() as conn:
-                user_data: Record = await repository.get_user_info(
+                record = await repository.get(
                     pool=conn,
-                    email=authdata.email,
-                    password=authdata.password
+                    email=authdata.email
                 )
-            if user_data:
-                return web.json_response(dict(user_data))
-            return web.json_response(data={'message': 'Account Not Found'})
+            user = User(**record)
+            await match_password(user, authdata.password)
+            payload = {
+                'user_id': user.id,
+                'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+            }
+            jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
+            return web.json_response({'token': jwt_token})
 
         except ValidationError as error:
             return web.json_response(
                 data={'message': f'Validate error - {str(error)}'},
+                status=400
+            )
+        except (UserDoesNotExist, UserPasswordDoesNotMatch):
+            return web.json_response(
+                data={'message': 'Wrong user cred'},
                 status=400
             )

@@ -2,13 +2,15 @@ from aiohttp import web
 from aiohttp.web_app import Application
 
 from connect_db import ConnectDb
-from auth.routes import setup_routes as setup_auth
-from folders.routes import setup_routes as setup_folders
+from auth.routes import UserRegisterView, LoginView
+from auth.middleware import auth_middleware
+from folders.routes import FolderListView
 
 
 def setup_routes(app: Application):
-    setup_auth(app)
-    setup_folders(app)
+    app.router.add_view('/register', UserRegisterView)
+    app.router.add_view('/login', LoginView)
+    app.router.add_view('/user/{id}/myfolders', FolderListView)
 
 
 def setup_db(app: Application):
@@ -19,7 +21,7 @@ def setup_db(app: Application):
 
 
 if __name__ == '__main__':
-    app = Application()
+    app = Application(middlewares=[auth_middleware])
     setup_db(app)
     setup_routes(app)
     web.run_app(app, port=8001)

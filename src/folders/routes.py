@@ -1,5 +1,4 @@
 from aiohttp import web
-from aiohttp.web_app import Application
 from asyncpg.pool import Pool
 
 from pydantic.error_wrappers import ValidationError
@@ -9,17 +8,13 @@ from .repositories import FolderRepository
 from .schemas import FolderCreate, UserId
 
 
-def setup_routes(app: Application):
-    app.router.add_view('/myfolders', FolderListView)
-
-
 class FolderListView(web.View):
     async def get(self):
         repository = FolderRepository()
         pool: Pool = self.request.app[DB_KEY]
         try:
-            request_data = await self.request.json()
-            validate_data = UserId(**request_data)
+            user_id = self.request.match_info['id']
+            validate_data = UserId(user_id=int(user_id))
 
             async with pool.acquire() as conn:
                 records = await repository.get_user_folders(
@@ -38,8 +33,9 @@ class FolderListView(web.View):
         repository = FolderRepository()
         pool: Pool = self.request.app[DB_KEY]
         try:
+            user_id = self.request.match_info['id']
             request_data = await self.request.json()
-            validate_data = FolderCreate(**request_data)
+            validate_data = FolderCreate(**request_data, user_id=int(user_id))
 
             async with pool.acquire() as conn:
                 async with conn.transaction():

@@ -1,6 +1,8 @@
 from asyncpg import Pool
 from abc import ABC, abstractmethod
 
+from .exceptions import UserDoesNotExist
+
 
 class AbstractRepository(ABC):
     @abstractmethod
@@ -33,14 +35,21 @@ class UserRepository(AbstractRepository):
             kwargs.get('password')
         )
 
-    async def get_user_info(self, pool: Pool, email: str, password: str):
+    async def get_by_id(self, pool: Pool, id: int):
         query = 'SELECT * FROM users ' \
-                'WHERE email=$1 and password=$2'
-        return await pool.fetchrow(query, email, password)
+                'WHERE id=$1'
+        user = await pool.fetchrow(query, id)
+        if user:
+            return user
+        raise UserDoesNotExist
 
-    async def get(self, pool: Pool, user_id: int):
-        query = 'SELECT * FROM users WHERE id=$1'
-        return await pool.fetchrow(query, user_id)
+    async def get(self, pool: Pool, email: str):
+        query = 'SELECT * FROM users ' \
+                'WHERE email=$1'
+        user = await pool.fetchrow(query, email)
+        if user:
+            return user
+        raise UserDoesNotExist
 
     async def update_first_name(self, pool: Pool, id: int, first_name: str):
         query = 'UPDATE users ' \
