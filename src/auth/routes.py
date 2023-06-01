@@ -14,24 +14,42 @@ from config import (
     JWT_EXP_DELTA_SECONDS,
     JWT_SECRET
 )
-from .models import User
-from .utils import match_password
+from models import User
 from .exceptions import UserDoesNotExist, UserPasswordDoesNotMatch
-from .repositories import UserRepository
+from .utils import match_password
+from .repositories import AuthRepository
 from .schemas import UserCreate, UserAuthData
 
 
 class UserRegisterView(web.View):
     async def post(self):
-        repository = UserRepository()
+        """
+        ---
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  first_name:
+                    type: string
+
+        responses:
+          '200':
+            description: OK.
+
+        """
+        repository = AuthRepository()
         request_data = await self.request.json()
         try:
-            validate_data = UserCreate(**request_data)
+            data = UserCreate(**request_data)
             pool: Pool = self.request.app[DB_KEY]
             async with pool.acquire() as conn:
                 async with conn.transaction():
-                    await repository.create(pool=conn, **validate_data.dict())
-            return web.json_response(data=validate_data.json())
+                    await repository.create(conn, data)
+
+            return web.json_response(data=data.json())
 
         except ValidationError as error:
             return web.json_response(
@@ -47,7 +65,7 @@ class UserRegisterView(web.View):
 
 class LoginView(web.View):
     async def post(self):
-        repository = UserRepository()
+        repository = AuthRepository()
         request_data = await self.request.json()
         try:
             authdata = UserAuthData(**request_data)
@@ -65,6 +83,7 @@ class LoginView(web.View):
                 'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             }
             jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
+
             return web.json_response({'token': jwt_token})
 
         except ValidationError as error:

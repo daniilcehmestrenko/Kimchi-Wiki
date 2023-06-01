@@ -1,43 +1,33 @@
-from asyncpg import Pool, Record
-from abc import ABC, abstractmethod
+from asyncpg.pool import Pool
+from abstracts import AbstractRepository
+
+from .schemas import FolderPOST, RecordPOST
 
 
-class AbstractRepository(ABC):
-    @abstractmethod
-    async def get(self, *args, **kwargs):
-        pass
+class FolderRepository(AbstractRepository):
+    async def get_folders(self, pool: Pool, user_id: int):
+        query = 'SELECT * FROM folders ' \
+                'WHERE user_id = $1'
+        return await pool.fetch(query, user_id)
 
-    @abstractmethod
-    async def create(self, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    async def delete(self, *args, **kwargs):
-        pass
+    async def create(self, pool: Pool, folder: FolderPOST, user_id: int):
+        query = 'INSERT INTO folders(title, user_id) ' \
+                'VALUES ($1, $2)'
+        return await pool.execute(query, folder.title, folder.user_id)
 
 
 class RecordRepository(AbstractRepository):
-    async def delete(self, pool: Pool, record_id: int):
-        query = 'DELETE FROM records WHERE id = $1'
-        return await pool.execute(query, record_id)
+    async def get_records(self, pool: Pool, folder_id: int):
+        query = 'SELECT * FROM records ' \
+                'WHERE folder_id = $1'
+        return await pool.fetch(query, folder_id)
 
-    async def create(self, pool: Pool, *args):
-        query = 'INSERT INTO records(folder_id, title, text) ' \
+    async def create(self, pool: Pool, record: RecordPOST, folder_id: int):
+        query = 'INSERT INTO records(title, text, folder_id) ' \
                 'VALUES ($1, $2, $3)'
-        return await pool.execute(query, *args)
-
-    async def get(self, pool: Pool, record_id: int) -> Record:
-        query = 'SELECT * FROM records WHERE id = $1'
-        return await pool.fetchrow(query, record_id)
-
-    async def update_title(self, pool: Pool, title: str, id: int):
-        query = 'UPDATE records ' \
-                'SET title=$1 ' \
-                'WHERE id=$2'
-        return await pool.execute(query, title, id)
-
-    async def update_text(self, pool: Pool, text: str, record_id: int):
-        query = 'UPDATE records ' \
-                'SET text=$1 ' \
-                'WHERE id=$2'
-        return await pool.execute(query, text, record_id)
+        return await pool.execute(
+            query,
+            record.title,
+            record.text,
+            folder_id
+        )

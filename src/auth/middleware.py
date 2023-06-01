@@ -6,17 +6,19 @@ from aiohttp.web import Request
 
 from asyncpg.pool import Pool
 
+from models import User
 from config import JWT_SECRET, JWT_ALGORITHM, DB_KEY, WHITE_LIST
-from .repositories import UserRepository
-from .models import User
+from .repositories import AuthRepository
 
 
 async def auth_middleware(app: Application, handler):
     async def middleware(request: Request):
         if request.rel_url.path in WHITE_LIST:
             return await handler(request)
+        elif 'docs' in request.rel_url.path:
+            return await handler(request)
 
-        repository = UserRepository()
+        repository = AuthRepository()
         pool: Pool = app[DB_KEY]
         request.user = None
         jwt_token = request.headers.get('Authorization')
@@ -33,8 +35,8 @@ async def auth_middleware(app: Application, handler):
                     status=400
                 )
             async with pool.acquire() as conn:
-                user = await repository.get_by_id(conn, payload['user_id'])
-                request.user = User(**dict(user))
+                record = await repository.get_by_id(conn, payload['user_id'])
+                request.user = User(**record)
 
             return await handler(request)
         return web.json_response(

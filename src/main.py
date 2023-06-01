@@ -1,16 +1,18 @@
 from aiohttp import web
 from aiohttp.web_app import Application
+from aiohttp_swagger3 import SwaggerDocs, SwaggerUiSettings
 
 from connect_db import ConnectDb
 from auth.routes import UserRegisterView, LoginView
 from auth.middleware import auth_middleware
-from folders.routes import FolderListView
+from records.routes import FolderView, RecordView
 
 
 def setup_routes(app: Application):
     app.router.add_view('/register', UserRegisterView)
     app.router.add_view('/login', LoginView)
-    app.router.add_view('/user/{id}/myfolders', FolderListView)
+    app.router.add_view('/myfolders', FolderView)
+    app.router.add_view('/records/{id}', RecordView)
 
 
 def setup_db(app: Application):
@@ -24,4 +26,8 @@ if __name__ == '__main__':
     app = Application(middlewares=[auth_middleware])
     setup_db(app)
     setup_routes(app)
+    swagger = SwaggerDocs(app, swagger_ui_settings=SwaggerUiSettings(path='/docs'))
+    swagger.add_routes([
+        web.view('/register', UserRegisterView)
+    ])
     web.run_app(app, port=8001)
